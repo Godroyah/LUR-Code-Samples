@@ -14,7 +14,7 @@ Folder Paths (both identical)
                                                                                           Event_Trigger script
                                                                                           Event_Type script
                                                                                           Interactable script
-LUR - Full Visual Studio Code >   Controller_Input    >     GameController script
+    LUR - Full Visual Studio Code >   Controller_Input    >     GameController script
     & Notepad Code Snippets                                 InputReader script
 
                                   Interactions        >     Collectibles_Destructibles    >     Bark script
