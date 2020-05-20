@@ -1,0 +1,63 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Bark : Interactable
+{
+    public Interaction interactionObject;
+    //public bool isEvent;
+    GameController gameController;
+    public GameObject barkContainer;
+    //ObjectPreferences objPrefs;
+    ParticleSystem playerParticles;
+    ParticleSystem barkParticles;
+    BoxCollider thisTrigger;
+
+    private void Start()
+    {
+        thisTrigger = GetComponent<BoxCollider>();
+
+        //objPrefs = GetComponent<ObjectPreferences>();
+        if(objPrefs != null)
+        {
+            playerParticles = objPrefs.headbutt_ParticleEffect_player.GetComponent<ParticleSystem>();
+            barkParticles = objPrefs.headbutt_ParticleEffect_obj.GetComponent<ParticleSystem>();
+        }
+
+        gameController = GameController.Instance;
+        GameController.Instance.onLevelLoaded += UpdateOnLevelLoad;
+    }
+
+    //Interact() in this case destroys the physical bark model and deactivates the collider for detecting a headbutt.
+
+    //The reason for this is so that the base code can remain, in the event we want the bark's destruction to trigger a cinematic event.
+    public override void Interact()
+    {
+        base.Interact();
+
+        GameController.Instance.InteractedWith(interactionObject);
+
+        playerParticles.Play();
+        barkParticles.Play();
+        thisTrigger.enabled = false;
+        Destroy(barkContainer);
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Headbutt"))
+        {
+            Interact();
+        }
+    }
+
+    public void UpdateOnLevelLoad()
+    {
+        if (GameController.Instance.HasInteracted(interactionObject))
+        {
+            thisTrigger.enabled = false;
+            Destroy(barkContainer);
+        }
+    }
+
+}

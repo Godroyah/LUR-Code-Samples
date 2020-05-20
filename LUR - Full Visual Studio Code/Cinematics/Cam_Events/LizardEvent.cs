@@ -1,0 +1,99 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public class LizardEvent : Event_Type
+{
+    
+    public Animator lizardAnim;
+
+    public float moveSpeed;
+    public float turnSpeed;
+    private int currentPoint;
+    private float distToPoint;
+    private Vector3 targetDirection;
+    private Vector3 newDirection;
+
+    //To be turned off when the event isn't active 
+    public MeshCollider lizardCollider;
+    public SkinnedMeshRenderer lizardRenderer;
+    public SkinnedMeshRenderer peaPodRenderer;
+    public MeshRenderer cartRenderer;
+
+    //Waypoints for mapping the Lizard Cart's movement during the cam event
+    public Transform[] wayPoints;
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        
+        //currentPoint = 0;
+        lizardCollider.enabled = false;
+        lizardRenderer.enabled = false;
+        peaPodRenderer.enabled = false;
+        cartRenderer.enabled = false;
+
+        //distToPoint = Vector3.Distance(transform.position, wayPoints[currentPoint].position);
+        GameController.Instance.onLevelLoaded += UpdateOnLevelLoad;
+    }
+
+
+    public override void StartEvent()
+    {
+        base.StartEvent();
+
+        StartCoroutine(FollowTrack());
+    }
+
+    //Make the lizard cart visible and then loops through waypoints while updating the carts distance to the next point
+    //Once the end of the waypoint array is reached, the lizard stops moving and ceases his walking animation
+    IEnumerator FollowTrack()
+    {
+        AudioManager.Instance.Play_Lizard_Walk();
+        AudioManager.Instance.Play_WoodenCartWheels_Dirt();
+        lizardRenderer.enabled = true;
+        lizardCollider.enabled = true;
+        peaPodRenderer.enabled = true;
+        cartRenderer.enabled = true;
+        for (int i = 0; i < wayPoints.Length; i++)
+        {
+            targetDirection = wayPoints[i].position - transform.position;
+            distToPoint = Vector3.Distance(transform.position, wayPoints[i].position);
+            while (distToPoint > 0.1f)
+            {
+                distToPoint = Vector3.Distance(transform.position, wayPoints[i].position);
+                targetDirection = wayPoints[i].position - transform.position;
+                newDirection = Vector3.RotateTowards(transform.forward, targetDirection, turnSpeed * Time.deltaTime, 0.0f);
+                transform.position = Vector3.MoveTowards(transform.position, wayPoints[i].position, moveSpeed * Time.deltaTime);
+                transform.rotation = Quaternion.LookRotation(newDirection);
+                yield return null;
+            }
+            //currentPoint = i;
+        }
+        lizardAnim.SetTrigger("End_Lizard");
+        GameController.Instance.stinkhorn_bus_Called = true;
+
+        //yield return new WaitForSeconds(2f); // TODO: REMOVE ME
+
+        //SceneManager.LoadScene(0);
+    }
+
+    public void UpdateOnLevelLoad()
+    {
+        if (GameController.Instance.stinkhorn_bus_Called)
+        {
+            lizardRenderer.enabled = true;
+            lizardCollider.enabled = true;
+            peaPodRenderer.enabled = true;
+            cartRenderer.enabled = true;
+            lizardAnim.SetTrigger("End_Lizard");
+
+            targetDirection = wayPoints[wayPoints.Length - 1].position - wayPoints[wayPoints.Length - 2].position;
+            newDirection = Vector3.RotateTowards(transform.forward, targetDirection,360f, 0.0f);
+            transform.position = wayPoints[wayPoints.Length-1].position;
+            transform.rotation = Quaternion.LookRotation(newDirection);
+        }
+    }
+
+}

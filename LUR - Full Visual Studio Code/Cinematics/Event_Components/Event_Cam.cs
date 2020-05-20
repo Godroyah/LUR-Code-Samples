@@ -1,0 +1,242 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+//README: The core class for creating customizable shots for cinematic camera events which are triggered via a number of player actions during the course of play
+
+public class Event_Cam : MonoBehaviour
+{
+    public bool startScene;
+
+    Transform currentViewPoint;
+
+    //Can be used to reference a specific conversation to use for line-by-line shot changes.
+    public Dialogue conversation;
+
+    //An array of Shots which can each be individually customized by the developer
+    public Shot[] shots;
+
+    public float currentTime;
+
+    public int currentScene;
+
+    public bool isInteractable;
+
+    private int frameIndexTracker;
+
+    public bool lastShot;
+
+    //private Transform restingPoint;
+
+    //private Vector3 restingPoint;
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        //restingPoint = transform.position;
+        //transform.position = restingPoint;
+        currentScene = 0;
+        currentTime = shots[currentScene].sceneTime;
+
+        //Invoke("Setup", 1);
+        GameController.Instance.updateCameras += UpdateCamera;
+    }
+
+    //creates minimum parameters for a camera event should there only be one available shot and that shot does not have its viewpoint reference filled in-editor
+    void Setup()
+    {
+        if (shots[0].viewpoint == null)
+        {
+            shots[0].viewpoint = GameController.Instance.mainCamera.transform;
+        }
+        if (shots[shots.Length - 1].viewpoint == null)
+        {
+            shots[shots.Length - 1].viewpoint = shots[0].viewpoint;
+        }
+
+        if (shots[0] != null)
+        {
+            foreach (Shot shot in shots)
+            {
+                if (shot.sceneTime < 1.0f)
+                {
+                    shot.sceneTime = 3.0f;
+                }
+                if (shot.transitionSpeed < 1.0f)
+                {
+                    shot.transitionSpeed = 1.0f;
+                }
+            }
+        }
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        if(!startScene)
+        {
+            currentScene = 0;
+            currentTime = shots[currentScene].sceneTime;
+            //transform.position = restingPoint;
+        }
+        //TODO: Kinda jank just for reuse of Red GazeGrowth
+
+        currentViewPoint = shots[currentScene].viewpoint;
+        //Debug.Log(shots.Length);
+
+       //Sets off the start of a cinematic in-game cutscene when signaled by the Event_Trigger class
+        if (startScene)
+        {
+            if(shots[currentScene].isEventTrigger && currentScene == 0)
+            {
+                if (shots[currentScene].eventType != null)
+                {
+                    shots[currentScene].eventType.StartEvent();
+                }
+            }
+            //This allows the class to loop through shots based on its normal timer variable (shots[].sceneTime) rather than by lines of dialogue
+
+            //This is used for the majority of events, even ones triggered by the END of a conversation
+
+            //If the shot has also been marked as isEventTrigger and has a reference to an "eventType" (such as the class for awakening one of the great trees), 
+
+            //it will also kick off those actions associated with the event.
+            if (!isInteractable)
+            {
+                if (currentTime < 0)
+                {
+                    if (currentScene != shots.Length - 1)
+                    {
+                        currentScene += 1;
+                    }
+                    currentTime = shots[currentScene].sceneTime;
+                    if (shots[currentScene].sceneTime <= 0)
+                    {
+                        Debug.LogWarning("Scene Time for shot" + currentScene + " is too close to 0! Please increase to a minimum of 1!");
+                    }
+                    //Debug.Log(currentScene);
+                    if (shots[currentScene].isEventTrigger)
+                    {
+                        if (shots[currentScene].eventType != null)
+                        {
+                            shots[currentScene].eventType.StartEvent();
+                        }
+                    }
+                }
+                currentTime -= Time.deltaTime;
+
+                if (currentTime < 0 && currentScene >= shots.Length - 1)
+                {
+                    //gongController.firstInteraction = false;
+                    startScene = false;
+                }
+            }
+
+            //This "else" statement below instead makes shot angles cycle by lines of dialogue in a predetermined conversatiion as the player cycles through them.
+
+            //The frameIndexTracker is set to the frameIndex being derived from the conversation, with each increase in the frameIndex representing the next line of dialogue
+
+            //Whenever the frameIndex differs from the frameIndexTracker, the camera will jump to the next shot angle, but ONLY if the frame within that conversation has been marked "true" for a shotChange
+            else
+            {
+                if(conversation != null)
+                {
+                    if (conversation.shotChange[conversation.frameIndex] == true)
+                    {
+                        if(frameIndexTracker != conversation.frameIndex)
+                        {
+                            currentScene += 1;
+                            frameIndexTracker = conversation.frameIndex;
+                        }
+                    }
+
+                    if (shots[currentScene].isEventTrigger)
+                    {
+                        if (shots[currentScene].eventType != null)
+                        {
+                            shots[currentScene].eventType.StartEvent();
+                        }
+                    }
+
+                    if(conversation.frameIndex == conversation.Frames.Length - 1)
+                    {
+                        lastShot = true;
+                    }
+
+                    if(lastShot && Input.GetButtonDown(GameController.Instance.interactInput) && conversation.textIsDone)
+                    {
+                        startScene = false;
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning("You do not have a source conversation referenced!");
+                }
+            }
+        }
+    }
+
+    //This simply lerps the camera between "viewpoints" when it is marked to glide between those points, as well as controlling the speed of that transition
+    private void LateUpdate()
+    {
+        if (startScene)
+        {
+            if (shots[currentScene].canGlide)
+            {
+                transform.position = Vector3.Lerp(transform.position, currentViewPoint.position, shots[currentScene].transitionSpeed * Time.deltaTime);
+
+                Quaternion currentAngle = Quaternion.Euler(
+                    Mathf.LerpAngle(transform.rotation.eulerAngles.x, currentViewPoint.rotation.eulerAngles.x, shots[currentScene].transitionSpeed * Time.deltaTime),
+                    Mathf.LerpAngle(transform.rotation.eulerAngles.y, currentViewPoint.rotation.eulerAngles.y, shots[currentScene].transitionSpeed * Time.deltaTime),
+                    Mathf.LerpAngle(transform.rotation.eulerAngles.z, currentViewPoint.rotation.eulerAngles.z, shots[currentScene].transitionSpeed * Time.deltaTime));
+
+                transform.rotation = currentAngle;
+            }
+            else
+            {
+                transform.position = currentViewPoint.transform.position;
+                transform.rotation = currentViewPoint.transform.rotation;
+            }
+        }
+        //else
+        //{
+        //    if(shots[0].viewpoint != null)
+        //    {
+        //        transform.position = shots[currentScene].viewpoint.position;
+        //        transform.rotation = shots[currentScene].viewpoint.rotation;
+        //    }
+        //    if (shots[0].viewpoint != null)
+        //    {
+        //        transform.position = restingPoint;
+        //        transform.rotation = Quaternion.identity;
+        //    }
+        //}
+    }
+
+    public void UpdateCamera(Camera newCamera)
+    {
+        Setup();
+    }
+}
+
+
+//Creates an internal class for "Shots", which are customizable camera angles. The Shot[] array that is declared at the top allows for any number of shots to be created.
+
+//Each one can then be customized according to how it "travels" to the next shot, how quickly it gets there, how long it lasts, and whether or not the shot
+
+//Is responsible for triggering other events in the world and on-camera.
+[System.Serializable]
+public class Shot
+{
+    public string name = "Empty String";
+    public bool canGlide = false;
+    public bool isEventTrigger = false;
+    //public bool isDialogueEvent = false;
+    //public bool hasTriggerTime = false;
+    public Event_Type eventType;
+    [Range(1f, 20f)]
+    public float sceneTime = 1f;
+    [Range(1f, 20f)]
+    public float transitionSpeed = 1f;
+    public Transform viewpoint;
+}

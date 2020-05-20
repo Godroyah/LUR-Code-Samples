@@ -1,0 +1,154 @@
+***Only includes select portions of the DialogueManager that specifically interact w/the Emote System, Dialogue implementation, and some cinematic cam event functions.
+***See the Visual Studio file for Dialogue for the full script
+
+//README: This script controls the looping of "Frames" (individual lines of a conversation), as designed by my co-programmer.
+//I also upgraded it to be able to find and activate character emotes, as well as to interact with the Event_Trigger class for cinematic cam events.
+
+public class Dialogue : MonoBehaviour
+{
+    //Frame index tracks which line of a conversation the player is on for camera event purposes when the camera angle needs to change line by line.
+    //The SceneName string matches up with an enum in DialogueManager that is used to reference specific conversations, which classes such as
+    //F_Forest_NPC_Talk grab onto to make sure the correct conversation is being accessed.
+
+    public int frameIndex;
+    [Tooltip("Name of the Scene for the DialogueManager to Find")]
+    public string SceneName;
+    
+    //Frames are the individual lines of text in a conversation.
+    //The bool array shotChange is checked against the EmoteChecker class on each frame to see if an active cinematic camera should change to the next predetermined angle.
+
+    public GameObject[] Frames;
+    [Space(5)]
+    [Header("Frame Triggers for Event Cam Shots")]
+    public bool[] shotChange;
+
+    //The NPC string checks against the string of a similar name in DialogueManager's serialized class NPC_Emotes. 
+    //EmoteCheck references the individual frame to get which kind of emote should be played, if any
+
+    [Header("Emote ID")]
+    public string NPC;
+    EmoteCheck emoteCheck;
+    CamControl camControl;
+    DialogueCam dialogueCam;
+    Event_Trigger eventTrigger;
+    GameController gameController;
+    [Space(10)]
+    public DialogueManager dialogueManager;
+
+
+    //When the Coroutine Scene() is accessed, it loops through the Frames (lines) of dialogue.
+
+    //FindEmote() is accessed when it finds a line that is marked to have an emote play.
+
+    //FindEmote() then loops through the DialogueManager's NPC list, checking them against its own NPC string name.
+
+    //Once it finds the correct character via that list, it will then check the EmoteCheck class on that line for
+
+    //which emote it should play, and then access the correct character's attached emotes and play the correct one.
+
+    IEnumerator FindEmote()
+    {
+        for(int i = 0; i < dialogueManager.npcs.Length; i++)
+        {
+            if (NPC == dialogueManager.npcs[i].NPC)
+            {
+                if (emoteCheck.Emote == EmoteType.SLEEPING)
+                {
+                    dialogueManager.npcs[i].npcEmotes.Sleeping.Play();
+                }
+                else if (emoteCheck.Emote == EmoteType.WAITING)
+                {
+                    dialogueManager.npcs[i].npcEmotes.Waiting.Play();
+                }
+                else if (emoteCheck.Emote == EmoteType.EXCLAMATION)
+                {
+                    dialogueManager.npcs[i].npcEmotes.Exclamation.Play();
+                }
+                else if (emoteCheck.Emote == EmoteType.ANGRY)
+                {
+                    dialogueManager.npcs[i].npcEmotes.Angry.Play();
+                }
+                else if (emoteCheck.Emote == EmoteType.SHOCKED)
+                {
+                    dialogueManager.npcs[i].npcEmotes.Shocked.Play();
+                }
+                else if (emoteCheck.Emote == EmoteType.CONFUSED)
+                {
+                    dialogueManager.npcs[i].npcEmotes.Confused.Play();
+                }
+                else if (emoteCheck.Emote == EmoteType.DIZZY)
+                {
+                    dialogueManager.npcs[i].npcEmotes.Dizzy.Play();
+                }
+                else if (emoteCheck.Emote == EmoteType.HAPPY)
+                {
+                    dialogueManager.npcs[i].npcEmotes.Happy.Play();
+                } 
+            }
+        }
+        yield return null;
+    }
+
+
+
+
+
+    //Scene() is the primary Coroutine for looping through lines of a conversation when the player talks to a character.
+
+    //I modified this system designed by my co-programmer to, for each frame, check that frame's EmoteCheck class.
+
+    //If the class says an emote should be played here, it then begins FindEmote() to find the correct character
+
+    //and activate the correct emote.
+
+
+***This is only part of the Scene() Coroutine to keep the clutter down. The whole script can be viewed in the Visual Studio file named Dialogue
+
+
+    IEnumerator Scene()
+    {
+        //Debug.Log("Scene Started");
+        //interactHandle = gameController.interactInput;
+
+        if (dialogueManager != null)
+        {
+            //Debug.Log("Still working?");
+            dialogueManager.hasActiveDialogue = true;
+        }
+
+        for (int i = 0; i < Frames.Length; i++)
+        {
+            frameIndex = i;
+            //  Debug.Log("Depth Level 1");
+            if (i != 0)
+                Frames[i - 1].SetActive(false);
+            Frames[i].SetActive(true);
+            emoteCheck = Frames[i].GetComponent<EmoteCheck>();
+            if(emoteCheck != null)
+            {
+                if (emoteCheck.play == true)
+                {
+                    StartCoroutine(FindEmote());
+                }
+            }
+
+
+
+*** The code snipped below comes after the Scene() coroutine's for loop has been closed but still exists within the coroutine.
+
+
+
+        //The for loop below is a bit of a back-door solution to allow the player to properly exit a cinematic event which changes the camera angles per line of dialogue.
+
+        //I needed a reference all the way back to the character the player was actually talking to in the moment to make this work. Though not designed originally to
+
+        //perform this function, the Emote system's architecture allowed me access back to the character that would have otherwise necessitated the creation of additional functionality.
+
+       
+	for (int i = 0; i < dialogueManager.npcs.Length; i++)
+        {
+            if (NPC == dialogueManager.npcs[i].NPC)
+            {
+                dialogueManager.npcs[i].npcEmotes.interactable.doneTalking = true;
+            }
+        }

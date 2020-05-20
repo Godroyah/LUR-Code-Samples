@@ -1,0 +1,129 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class InputReader : MonoBehaviour
+{
+    GameController gameController;
+
+    //Controller String Handles
+    string ps4Handle;
+    string xboxHandle;
+
+    //Enum list used to indicate which input state the game is currently in
+    public enum gameInputState
+    {
+        MouseKeyboard,
+        Xbox,
+        PS4
+    }
+
+    //Defaults the gameState for input to Mouse and Keyboard.
+    public gameInputState in_State = gameInputState.MouseKeyboard;
+
+    private void Start()
+    {
+        gameController = GameController.Instance;
+        gameController.inputReader = this;
+    }
+
+    private void Update()
+    {
+        //Debug.Log(isMouseKeyboard());
+        //isMouseKeyboard();
+        isPS4Input();
+        isXboxInput();
+        OnInput();
+    }
+
+
+    //Checks to see detected input is the input which is already being used. If not, then it sets the gameInputState value to the currently detected input.
+    void OnInput()
+    {
+        if (isXboxInput())
+        {
+            if(in_State != gameInputState.Xbox)
+            {
+                in_State = gameInputState.Xbox;
+                Debug.Log("Xbox controller is active");
+            }
+        }
+        else if (isPS4Input())
+        {
+            if(in_State != gameInputState.PS4)
+            {
+                in_State = gameInputState.PS4;
+                Debug.Log("PS4 controller is active");
+            }
+        }
+        else
+        {
+            if(in_State != gameInputState.MouseKeyboard)
+            {
+                in_State = gameInputState.MouseKeyboard;
+                Debug.Log("Mouse & Keyboard are active");
+            }
+        }
+    }
+
+    //Used to return the current value of in_State; is grabbed by the GameController to change string handles for Input Axes values in Project Settings
+    public gameInputState GetInputState()
+    {
+        return in_State;
+    }
+
+    //If input is gathered from camera movement from the mouse, then isMouseKeyboard() returns true to indicate Mouse & Keyboard input
+
+    private bool isMouseKeyboard()
+    {
+        //input from mouse and keyboard buttons
+        
+        //if(Event.current.isKey || Event.current.isMouse)
+        //{
+        //    Debug.Log("Not getting through?");
+        //    return true;
+        //}
+        //mouse movement
+        if(Input.GetAxis("CamX PC") != 0.0f || Input.GetAxis("CamY PC") != 0.0f)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    
+    //Declares the string array controllers to get the names of all possible joystick inputs when they are detected.
+    //If in looping through the array any of the returned strings have "Xbox" in the name, isXboxInput() returns true
+    private bool isXboxInput()
+    {
+        //joystick buttons
+        string[] controllers = Input.GetJoystickNames();
+
+        for (int i = 0; i < controllers.Length; i++)
+        {
+            if (controllers[i].Contains("Xbox"))
+            {
+                Debug.Log(controllers[i]);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    //Same as isXboxInput(), but for detecting PS4 controllers instead.
+    private bool isPS4Input()
+    {
+
+        string[] controllers = Input.GetJoystickNames();
+
+        for (int i = 0; i < controllers.Length; i++)
+        {
+            if (controllers[i].Contains("Wireless") || controllers[i].Contains("Sony"))
+            {
+                Debug.Log(controllers[i]);
+                return true;
+            }
+        }
+        return false;
+    }
+}
